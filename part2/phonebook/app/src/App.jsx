@@ -1,16 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import Filter from "./components/Filter";
 import PersonsForm from "./components/PersonsForm";
 import Persons from "./components/Persons";
 
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: "Arto Hellas", number: "1234" },
-  ]);
+  const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [filter, setFilter] = useState("");
 
+  useEffect(() => {
+    axios.get("http://localhost:3001/persons").then((response) => {
+      console.log("promise fulfilled");
+      setPersons(response.data);
+    });
+  }, []);
   const handleNameInputChange = (event) => {
     setNewName(event.target.value);
   };
@@ -54,7 +59,6 @@ const App = () => {
 
       <h2>Numbers</h2>
       <Persons persons={persons} filter={filter} />
-      <div>debug:{newName}</div>
     </div>
   );
 };
