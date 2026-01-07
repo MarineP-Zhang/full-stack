@@ -1,35 +1,71 @@
 import { useState, useEffect } from "react";
 import personsService from "./services/persons";
-import axios from "axios";
 import Filter from "./components/Filter";
 import PersonsForm from "./components/PersonsForm";
 import Persons from "./components/Persons";
+import Notification from "./components/Notification";
 
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [filter, setFilter] = useState("");
+  const [message, setMessage] = useState("");
+  const [type, setType] = useState("");
 
+  const TIMEOUT = 5000;
+  // Fetch persons from server
   useEffect(() => {
     personsService.getAll().then((data) => setPersons(data));
   }, []);
 
+  // handle different change from input
   const handleChange = (event, setFunc) => {
     setFunc(event.target.value);
   };
 
+  const handleNotification = (message, type, func) => {
+    setMessage(message);
+    setType(type);
+    func();
+  };
+
+  const setNotificationTimeout = () => {
+    setTimeout(() => {
+      setMessage("");
+      setType("");
+    }, TIMEOUT);
+  };
+
+  // delete person once click button
   const handleClickDelete = (id) => {
-    const decision = window.confirm(
-      `Delete ${persons.find((person) => person.id === id).name}?`
-    );
+    // double check
+    const deletedPerson = persons.find((person) => person.id === id);
+    const decision = window.confirm(`Delete ${deletedPerson.name}?`);
+    // delete from server and remove it from fontend to refresh and render
     if (decision) {
       personsService
         .deleteById(id)
-        .then(setPersons(persons.filter((person) => person.id !== id)));
+        .then(() => {
+          setPersons(persons.filter((person) => person.id !== id));
+          handleNotification(
+            `Deleted ${deletedPerson.name}`,
+            "success",
+            setNotificationTimeout
+          );
+        })
+        .catch(() => {
+          handleNotification(
+            `Information of ${deletedPerson.name} has already been removed from server`,
+            "error",
+            setNotificationTimeout
+          );
+          setPersons(persons.filter((person) => person.id !== id));
+        });
     }
   };
 
+  //handle sumbit
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -50,12 +86,37 @@ const App = () => {
                 person.id === addedPerson.id ? repalcedPerson : person
               )
             );
-          });
+            handleNotification(
+              `Changed ${newName}'s number to ${newNumber}`,
+              "success",
+              setNotificationTimeout
+            );
+          })
+          .catch(
+            (error) =>
+              handleNotification(
+                `Fail to change ${newName}'s number. Because: ${error.message}`
+              ),
+            "error",
+            setNotificationTimeout
+          );
       }
     } else {
-      personsService.createPerson(newPerson).then((data) => {
-        setPersons(persons.concat(data));
-      });
+      personsService
+        .createPerson(newPerson)
+        .then((data) => {
+          setPersons(persons.concat(data));
+          handleNotification(
+            `Created ${newName}'s number`,
+            "success",
+            setNotificationTimeout
+          );
+        })
+        .catch(
+          () => handleNotification(`Fail to create ${newName}'s number`),
+          "error",
+          setNotificationTimeout
+        );
     }
     setNewName("");
     setNewNumber("");
@@ -64,6 +125,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={message} type={type} />
       <Filter
         filter={filter}
         onChange={(event) => {
